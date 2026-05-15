@@ -1,6 +1,7 @@
 const Comment = require('../models/Comment');
 const Task = require('../models/Task');
 const Notification = require('../models/Notification');
+const ActivityLog = require('../models/ActivityLog');
 
 // @desc    Get comments for a task
 // @route   GET /api/comments/:taskId
@@ -40,6 +41,14 @@ const addComment = async (req, res) => {
         type: 'Comment',
       });
     }
+
+    await ActivityLog.create({
+      task: task._id,
+      project: task.project,
+      user: req.user._id,
+      action: 'added a comment',
+      details: text.substring(0, 50) + (text.length > 50 ? '...' : '')
+    });
 
     const populatedComment = await Comment.findById(comment._id).populate('user', 'name avatar');
     res.status(201).json(populatedComment);

@@ -52,6 +52,8 @@ app.use('/api/users', require('./routes/users'));
 app.use('/api/chat', require('./routes/chat'));
 app.use('/api/upload', require('./routes/uploads'));
 app.use('/api/comments', require('./routes/comments'));
+app.use('/api/activities', require('./routes/activities'));
+app.use('/api/notifications', require('./routes/notifications'));
 
 app.get('/', (req, res) => {
   res.send('TaskNova API is running...');

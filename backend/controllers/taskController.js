@@ -1,4 +1,6 @@
 const Task = require('../models/Task');
+const ActivityLog = require('../models/ActivityLog');
+const Notification = require('../models/Notification');
 
 // @desc    Get all tasks
 // @route   GET /api/tasks
@@ -43,6 +45,25 @@ const createTask = async (req, res) => {
       .populate('project', 'title')
       .populate('createdBy', 'name');
 
+    // Create Activity Log
+    await ActivityLog.create({
+      task: createdTask._id,
+      project: createdTask.project,
+      user: req.user._id,
+      action: 'created task',
+      details: createdTask.title
+    });
+
+    // Create Notification
+    if (assignedTo && assignedTo.toString() !== req.user._id.toString()) {
+      await Notification.create({
+        user: assignedTo,
+        message: `${req.user.name} assigned you a new task: ${createdTask.title}`,
+        type: 'Task',
+        link: `/tasks`
+      });
+    }
+
     // Emit socket event
     const io = req.app.get('io');
     if (io) io.emit('taskCreated', populatedTask);
@@ -58,7 +79,7 @@ const createTask = async (req, res) => {
 // @access  Private
 const updateTask = async (req, res) => {
   try {
-    const { title, description, assignedTo, priority, dueDate, status, attachments } = req.body;
+    const { title, description, assignedTo, priority, dueDate, status, attachments, subtasks } = req.body;
 
     const task = await Task.findById(req.params.id);
 
@@ -67,7 +88,7 @@ const updateTask = async (req, res) => {
       throw new Error('Task not found');
     }
 
-    // Admins can update anything. Members can only update status or add attachments if it's their task.
+    // Admins can update anything. Members can only update status, attachments, or subtasks if it's their task.
     if (req.user.role !== 'Admin') {
       if (task.assignedTo.toString() !== req.user._id.toString()) {
         res.status(403);
@@ -75,6 +96,7 @@ const updateTask = async (req, res) => {
       }
       task.status = status || task.status;
       if (attachments) task.attachments = attachments;
+      if (subtasks) task.subtasks = subtasks;
     } else {
       task.title = title || task.title;
       task.description = description || task.description;
@@ -83,6 +105,7 @@ const updateTask = async (req, res) => {
       task.dueDate = dueDate || task.dueDate;
       task.status = status || task.status;
       if (attachments) task.attachments = attachments;
+      if (subtasks) task.subtasks = subtasks;
     }
 
     const updatedTask = await task.save();
@@ -91,6 +114,15 @@ const updateTask = async (req, res) => {
       .populate('assignedTo', 'name email')
       .populate('project', 'title')
       .populate('createdBy', 'name');
+
+    // Create Activity Log
+    await ActivityLog.create({
+      task: updatedTask._id,
+      project: updatedTask.project,
+      user: req.user._id,
+      action: 'updated task',
+      details: updatedTask.title
+    });
 
     // Emit socket event
     const io = req.app.get('io');

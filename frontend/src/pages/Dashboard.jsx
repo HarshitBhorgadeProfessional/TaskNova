@@ -17,19 +17,22 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
 
   const [trendData, setTrendData] = useState([]);
+  const [activities, setActivities] = useState([]);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const [projectsRes, tasksRes, usersRes] = await Promise.all([
+        const [projectsRes, tasksRes, usersRes, activitiesRes] = await Promise.all([
           api.get('/api/projects'),
           api.get('/api/tasks'),
-          user.role === 'Admin' ? api.get('/api/users') : Promise.resolve({ data: [] })
+          user.role === 'Admin' ? api.get('/api/users') : Promise.resolve({ data: [] }),
+          api.get('/api/activities')
         ]);
         
         const tasks = tasksRes.data;
         const projects = projectsRes.data;
         const users = usersRes.data;
+        setActivities(activitiesRes.data || []);
 
         setStats({
           totalProjects: projects.length,
@@ -218,6 +221,48 @@ const Dashboard = () => {
               </div>
             ))}
           </div>
+        </div>
+      </div>
+
+      {/* Activity Timeline */}
+      <div className="glass-panel p-6 rounded-2xl">
+        <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-6 flex items-center">
+          <Activity size={20} className="mr-2 text-primary-500" /> Recent Activity
+        </h3>
+        <div className="space-y-6 max-h-96 overflow-y-auto pr-2 custom-scrollbar">
+          {activities.length === 0 ? (
+            <p className="text-sm text-slate-500 text-center py-4">No recent activities.</p>
+          ) : (
+            activities.map((activity, idx) => (
+              <div key={activity._id || idx} className="flex relative">
+                {idx !== activities.length - 1 && (
+                  <div className="absolute top-8 left-4 w-0.5 h-full -ml-px bg-slate-200 dark:bg-slate-700"></div>
+                )}
+                <div className="relative flex-shrink-0 w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900/50 flex items-center justify-center border-4 border-white dark:border-[#111113] z-10">
+                  <span className="text-primary-600 dark:text-primary-400 text-xs font-bold">
+                    {activity.user?.name?.charAt(0).toUpperCase() || 'U'}
+                  </span>
+                </div>
+                <div className="ml-4 min-w-0 flex-1 py-1.5">
+                  <div className="text-sm text-slate-800 dark:text-slate-200">
+                    <span className="font-semibold">{activity.user?.name || 'Someone'}</span>{' '}
+                    <span className="text-slate-500 dark:text-slate-400">{activity.action}</span>{' '}
+                    <span className="font-medium text-primary-600 dark:text-primary-400">{activity.details || 'a task'}</span>
+                  </div>
+                  <div className="mt-1 flex items-center text-xs text-slate-400">
+                    <Clock size={12} className="mr-1" />
+                    <span>{new Date(activity.createdAt).toLocaleString()}</span>
+                    {activity.project?.title && (
+                      <>
+                        <span className="mx-2">•</span>
+                        <span>{activity.project.title}</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </div>

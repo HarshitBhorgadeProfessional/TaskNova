@@ -37,14 +37,18 @@ const signup = async (req, res) => {
         userExists.signupOtpExpire = Date.now() + 10 * 60 * 1000;
         await userExists.save();
 
-        await transporter.sendMail({
-          from: process.env.EMAIL_USER,
-          to: userExists.email,
-          subject: 'TaskNova - Email Verification OTP',
-          text: `Your verification OTP is: ${otp}\nThis will expire in 10 minutes.`,
-        });
+        if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+          await transporter.sendMail({
+            from: process.env.EMAIL_USER,
+            to: userExists.email,
+            subject: 'TaskNova - Email Verification OTP',
+            text: `Your verification OTP is: ${otp}\nThis will expire in 10 minutes.`,
+          });
+        } else {
+          console.log(`[DEV MODE] Verification OTP for ${userExists.email}: ${otp}`);
+        }
 
-        return res.status(200).json({ message: 'OTP re-sent to email for verification', email });
+        return res.status(200).json({ message: 'OTP re-sent to email for verification (Check server console if dev mode)', email });
       } else {
         res.status(400);
         throw new Error('User already exists');
@@ -67,14 +71,18 @@ const signup = async (req, res) => {
 
     if (user) {
       // Send Email
-      await transporter.sendMail({
-        from: process.env.EMAIL_USER,
-        to: user.email,
-        subject: 'Welcome to TaskNova - Verify your email',
-        html: `<h2>Welcome to TaskNova!</h2><p>Your verification OTP is: <strong>${otp}</strong></p><p>This OTP will expire in 10 minutes.</p>`,
-      });
+      if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+        await transporter.sendMail({
+          from: process.env.EMAIL_USER,
+          to: user.email,
+          subject: 'Welcome to TaskNova - Verify your email',
+          html: `<h2>Welcome to TaskNova!</h2><p>Your verification OTP is: <strong>${otp}</strong></p><p>This OTP will expire in 10 minutes.</p>`,
+        });
+      } else {
+        console.log(`[DEV MODE] Verification OTP for ${user.email}: ${otp}`);
+      }
 
-      res.status(201).json({ message: 'User registered. Please check email for OTP.', email: user.email });
+      res.status(201).json({ message: 'User registered. Please check email for OTP (or server console).', email: user.email });
     } else {
       res.status(400);
       throw new Error('Invalid user data');

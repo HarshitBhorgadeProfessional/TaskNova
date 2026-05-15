@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Paperclip, Download, Trash2, FileText, FileImage, FileCode, Archive } from 'lucide-react';
+import { X, Paperclip, Download, Trash2, FileText, FileImage, FileCode, Archive, CheckCircle2, Circle, MessageSquare, Send } from 'lucide-react';
 import { Button } from './ui/Button';
 import api from '../lib/axios';
 import { format } from 'date-fns';
@@ -8,6 +8,67 @@ import { format } from 'date-fns';
 const TaskModal = ({ isOpen, onClose, task, onTaskUpdate }) => {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
+
+  // Subtasks and Comments State
+  const [newSubtask, setNewSubtask] = useState('');
+  const [comments, setComments] = useState([]);
+  const [newComment, setNewComment] = useState('');
+  const [loadingComments, setLoadingComments] = useState(false);
+
+  useEffect(() => {
+    if (isOpen && task) {
+      fetchComments();
+    }
+  }, [isOpen, task]);
+
+  const fetchComments = async () => {
+    try {
+      setLoadingComments(true);
+      const res = await api.get(`/api/comments/${task._id}`);
+      setComments(res.data);
+    } catch (err) {
+      console.error('Failed to load comments', err);
+    } finally {
+      setLoadingComments(false);
+    }
+  };
+
+  const handleAddComment = async (e) => {
+    e.preventDefault();
+    if (!newComment.trim()) return;
+    try {
+      const res = await api.post(`/api/comments/${task._id}`, { text: newComment });
+      setComments([...comments, res.data]);
+      setNewComment('');
+    } catch (err) {
+      console.error('Failed to post comment', err);
+    }
+  };
+
+  const handleAddSubtask = async (e) => {
+    if (e.key === 'Enter' && newSubtask.trim()) {
+      e.preventDefault();
+      try {
+        const updatedSubtasks = [...(task.subtasks || []), { title: newSubtask.trim(), isCompleted: false }];
+        const { data: updatedTask } = await api.put(`/api/tasks/${task._id}`, { subtasks: updatedSubtasks });
+        onTaskUpdate(updatedTask);
+        setNewSubtask('');
+      } catch (err) {
+        console.error('Failed to add subtask', err);
+      }
+    }
+  };
+
+  const handleToggleSubtask = async (idx) => {
+    try {
+      const updatedSubtasks = [...(task.subtasks || [])];
+      updatedSubtasks[idx].isCompleted = !updatedSubtasks[idx].isCompleted;
+      const { data: updatedTask } = await api.put(`/api/tasks/${task._id}`, { subtasks: updatedSubtasks });
+      onTaskUpdate(updatedTask);
+    } catch (err) {
+      console.error('Failed to toggle subtask', err);
+    }
+  };
 
   if (!isOpen || !task) return null;
 
@@ -111,8 +172,52 @@ const TaskModal = ({ isOpen, onClose, task, onTaskUpdate }) => {
               </p>
             </div>
 
+            {/* Subtasks Section */}
+            <div className="mb-8">
+              <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3 flex items-center">
+                <CheckCircle2 size={16} className="mr-2" /> Subtasks
+              </h4>
+              
+              {/* Progress Bar */}
+              {(task.subtasks?.length > 0) && (
+                <div className="mb-4">
+                  <div className="flex justify-between text-xs text-slate-500 mb-1">
+                    <span>Progress</span>
+                    <span>{Math.round((task.subtasks.filter(s => s.isCompleted).length / task.subtasks.length) * 100)}%</span>
+                  </div>
+                  <div className="w-full bg-slate-100 dark:bg-[#27272a] rounded-full h-1.5">
+                    <div 
+                      className="bg-primary-500 h-1.5 rounded-full transition-all duration-300" 
+                      style={{ width: `${Math.round((task.subtasks.filter(s => s.isCompleted).length / task.subtasks.length) * 100)}%` }}
+                    ></div>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-2 mb-3">
+                {task.subtasks?.map((subtask, idx) => (
+                  <div key={idx} className="flex items-center space-x-3 p-2 hover:bg-slate-50 dark:hover:bg-[#1f1f22] rounded-lg group transition-colors">
+                    <button onClick={() => handleToggleSubtask(idx)} className="text-slate-400 hover:text-primary-500 transition-colors">
+                      {subtask.isCompleted ? <CheckCircle2 size={18} className="text-primary-500" /> : <Circle size={18} />}
+                    </button>
+                    <span className={`text-sm flex-1 ${subtask.isCompleted ? 'text-slate-400 line-through' : 'text-slate-700 dark:text-slate-300'}`}>
+                      {subtask.title}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <input 
+                type="text" 
+                placeholder="Add a new subtask and press Enter..." 
+                value={newSubtask}
+                onChange={(e) => setNewSubtask(e.target.value)}
+                onKeyDown={handleAddSubtask}
+                className="w-full bg-slate-50 dark:bg-[#1f1f22] border border-slate-200 dark:border-[#27272a] rounded-xl px-4 py-2.5 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all"
+              />
+            </div>
+
             {/* Attachments Section */}
-            <div>
+            <div className="mb-8">
               <div className="flex justify-between items-center mb-4">
                 <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center">
                   <Paperclip size={16} className="mr-2" /> Attachments
@@ -145,7 +250,7 @@ const TaskModal = ({ isOpen, onClose, task, onTaskUpdate }) => {
                       </div>
                     </div>
                     <div className="flex items-center space-x-1 flex-shrink-0 ml-2">
-                      <a href={`http://localhost:5000${file.url}`} target="_blank" rel="noreferrer" download className="p-1.5 text-slate-400 hover:text-primary-600 transition-colors">
+                      <a href={`${import.meta.env.VITE_API_URL || ''}${file.url}`} target="_blank" rel="noreferrer" download className="p-1.5 text-slate-400 hover:text-primary-600 transition-colors">
                         <Download size={16} />
                       </a>
                       <button onClick={() => handleRemoveAttachment(file.url)} className="p-1.5 text-slate-400 hover:text-red-500 transition-colors">
@@ -155,6 +260,53 @@ const TaskModal = ({ isOpen, onClose, task, onTaskUpdate }) => {
                   </div>
                 ))}
               </div>
+            </div>
+
+            {/* Comments Section */}
+            <div>
+              <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4 flex items-center">
+                <MessageSquare size={16} className="mr-2" /> Comments
+              </h4>
+              <div className="space-y-4 mb-4 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                {loadingComments ? (
+                  <p className="text-sm text-slate-500 text-center py-2">Loading comments...</p>
+                ) : comments.length === 0 ? (
+                  <p className="text-sm text-slate-400 text-center py-2">No comments yet. Start the discussion!</p>
+                ) : (
+                  comments.map((comment) => (
+                    <div key={comment._id} className="flex space-x-3">
+                      <div className="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center flex-shrink-0">
+                        <span className="text-primary-700 dark:text-primary-400 font-semibold text-xs">
+                          {comment.user?.name?.charAt(0).toUpperCase() || 'U'}
+                        </span>
+                      </div>
+                      <div className="flex-1 bg-slate-50 dark:bg-[#1f1f22] p-3 rounded-2xl rounded-tl-none border border-slate-100 dark:border-[#27272a]">
+                        <div className="flex justify-between items-baseline mb-1">
+                          <span className="text-sm font-medium text-slate-800 dark:text-slate-200">{comment.user?.name || 'Unknown'}</span>
+                          <span className="text-[10px] text-slate-400">{format(new Date(comment.createdAt), 'MMM d, h:mm a')}</span>
+                        </div>
+                        <p className="text-sm text-slate-600 dark:text-slate-400 whitespace-pre-wrap">{comment.text}</p>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+              <form onSubmit={handleAddComment} className="flex space-x-2 relative">
+                <input 
+                  type="text" 
+                  placeholder="Write a comment..." 
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-[#1f1f22] border border-slate-200 dark:border-[#27272a] rounded-xl pl-4 pr-12 py-2.5 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500/50"
+                />
+                <button 
+                  type="submit" 
+                  disabled={!newComment.trim()}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-primary-500 hover:bg-primary-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <Send size={14} />
+                </button>
+              </form>
             </div>
           </div>
         </motion.div>
