@@ -1,35 +1,46 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
-const nodemailer = require('nodemailer');
-
-// Configure Nodemailer Transporter (Optimized for Railway)
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
-  secure: false, // true for 465, false for other ports
-  family: 4,     // Force IPv4 to avoid Railway IPv6 ENETUNREACH issues
-  requireTLS: true,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-  connectionTimeout: 20000,
-  greetingTimeout: 20000,
-  socketTimeout: 30000,
-  tls: {
-    rejectUnauthorized: false,
-    minVersion: "TLSv1.2",
-  },
-});
-
-// Verify SMTP connection on startup
-transporter.verify((error, success) => {
-  if (error) {
-    console.error("SMTP Verify Error:", error);
-  } else {
-    console.log("SMTP Server Ready");
+// Helper: Send Email using Brevo REST API (Bypasses Railway SMTP Block)
+const sendBrevoEmail = async (toEmail, subject, htmlContent) => {
+  const apiKey = process.env.BREVO_API_KEY;
+  if (!apiKey) {
+    console.log(`[DEV MODE] Email to ${toEmail}: ${subject}`);
+    return;
   }
-});
+  
+  try {
+    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'accept': 'application/json',
+        'api-key': apiKey,
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify({
+        sender: {
+          name: 'TaskNova',
+          email: 'bhorgadeharshit@gmail.com' // Verified Brevo Sender
+        },
+        to: [
+          {
+            email: toEmail
+          }
+        ],
+        subject: subject,
+        htmlContent: htmlContent
+      })
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      console.error("[BREVO ERROR]", data);
+    } else {
+      console.log(`[BREVO SUCCESS] Email sent to ${toEmail}`);
+    }
+  } catch (error) {
+    console.error("[BREVO FETCH ERROR]", error.message);
+  }
+};
 
 // Generate JWT
 const generateToken = (id) => {
@@ -57,16 +68,16 @@ const signup = async (req, res) => {
         userExists.signupOtpExpire = Date.now() + 10 * 60 * 1000;
         await userExists.save();
 
-        if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-          transporter.sendMail({
-            from: process.env.EMAIL_USER,
-            to: userExists.email,
-            subject: 'TaskNova - Email Verification OTP',
-            text: `Your verification OTP is: ${otp}\nThis will expire in 10 minutes.`,
-          }).catch(e => console.error("Email send error:", e.message));
-        } else {
-          console.log(`[DEV MODE] Verification OTP for ${userExists.email}: ${otp}`);
-        }
+        await sendBrevoEmail(
+          userExists.email,
+          'TaskNova - Email Verification OTP',
+          `<div style="font-family:sans-serif;max-width:480px;margin:auto;padding:32px;border:1px solid #e5e7eb;border-radius:12px">
+            <h2 style="color:#6d28d9">Welcome back to TaskNova!</h2>
+            <p>Your verification code is:</p>
+            <div style="font-size:36px;font-weight:bold;letter-spacing:8px;color:#6d28d9;padding:16px;background:#f5f3ff;border-radius:8px;text-align:center">${otp}</div>
+            <p style="color:#6b7280;font-size:14px;margin-top:16px">This code expires in 10 minutes. Do not share it with anyone.</p>
+          </div>`
+        );
 
         return res.status(200).json({ message: 'OTP re-sent to email for verification (Check server console if dev mode)', email, devOtp: otp });
       } else {
@@ -91,16 +102,17 @@ const signup = async (req, res) => {
 
     if (user) {
       // Send Email
-      if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-        transporter.sendMail({
-          from: process.env.EMAIL_USER,
-          to: user.email,
-          subject: 'Welcome to TaskNova - Verify your email',
-          html: `<h2>Welcome to TaskNova!</h2><p>Your verification OTP is: <strong>${otp}</strong></p><p>This OTP will expire in 10 minutes.</p>`,
-        }).catch(e => console.error("Email send error:", e.message));
-      } else {
-        console.log(`[DEV MODE] Verification OTP for ${user.email}: ${otp}`);
-      }
+      // Send Email via Brevo API
+      await sendBrevoEmail(
+        user.email,
+        'Welcome to TaskNova - Verify your email',
+        `<div style="font-family:sans-serif;max-width:480px;margin:auto;padding:32px;border:1px solid #e5e7eb;border-radius:12px">
+          <h2 style="color:#6d28d9">Welcome to TaskNova!</h2>
+          <p>Your verification code is:</p>
+          <div style="font-size:36px;font-weight:bold;letter-spacing:8px;color:#6d28d9;padding:16px;background:#f5f3ff;border-radius:8px;text-align:center">${otp}</div>
+          <p style="color:#6b7280;font-size:14px;margin-top:16px">This code expires in 10 minutes. Do not share it with anyone.</p>
+        </div>`
+      );
 
       res.status(201).json({ message: 'User registered. Please check email for OTP (or server console).', email: user.email, devOtp: otp });
     } else {
