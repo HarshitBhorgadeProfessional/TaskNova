@@ -1,15 +1,32 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 
-// Configure Nodemailer Transporter
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+// Helper: Send OTP email via Resend HTTP API (works on Railway)
+const sendOtpEmail = async (to, otp, subject = 'TaskNova - Email Verification') => {
+  if (!process.env.RESEND_API_KEY) {
+    console.log(`[DEV MODE] OTP for ${to}: ${otp}`);
+    return;
+  }
+  try {
+    await resend.emails.send({
+      from: 'TaskNova <onboarding@resend.dev>',
+      to: [to],
+      subject,
+      html: `<div style="font-family:sans-serif;max-width:480px;margin:auto;padding:32px;border:1px solid #e5e7eb;border-radius:12px">
+        <h2 style="color:#6d28d9">Welcome to TaskNova!</h2>
+        <p>Your verification code is:</p>
+        <div style="font-size:36px;font-weight:bold;letter-spacing:8px;color:#6d28d9;padding:16px;background:#f5f3ff;border-radius:8px;text-align:center">${otp}</div>
+        <p style="color:#6b7280;font-size:14px;margin-top:16px">This code expires in 10 minutes. Do not share it with anyone.</p>
+      </div>`,
+    });
+    console.log(`[EMAIL SENT] OTP sent to ${to}`);
+  } catch (err) {
+    console.error(`[EMAIL ERROR] Failed to send to ${to}:`, err.message);
+  }
+};
 
 // Generate JWT
 const generateToken = (id) => {
@@ -37,18 +54,9 @@ const signup = async (req, res) => {
         userExists.signupOtpExpire = Date.now() + 10 * 60 * 1000;
         await userExists.save();
 
-        if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-          transporter.sendMail({
-            from: process.env.EMAIL_USER,
-            to: userExists.email,
-            subject: 'TaskNova - Email Verification OTP',
-            text: `Your verification OTP is: ${otp}\nThis will expire in 10 minutes.`,
-          }).catch(e => console.error("Email send error:", e.message));
-        } else {
-          console.log(`[DEV MODE] Verification OTP for ${userExists.email}: ${otp}`);
-        }
+        await sendOtpEmail(userExists.email, otp, 'TaskNova - Email Verification OTP');
 
-        return res.status(200).json({ message: 'OTP re-sent to email for verification (Check server console if dev mode)', email, devOtp: otp });
+        return res.status(200).json({ message: 'OTP sent! Please check your email.', email });
       } else {
         res.status(400);
         throw new Error('User already exists');
@@ -70,19 +78,10 @@ const signup = async (req, res) => {
     });
 
     if (user) {
-      // Send Email
-      if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-        transporter.sendMail({
-          from: process.env.EMAIL_USER,
-          to: user.email,
-          subject: 'Welcome to TaskNova - Verify your email',
-          html: `<h2>Welcome to TaskNova!</h2><p>Your verification OTP is: <strong>${otp}</strong></p><p>This OTP will expire in 10 minutes.</p>`,
-        }).catch(e => console.error("Email send error:", e.message));
-      } else {
-        console.log(`[DEV MODE] Verification OTP for ${user.email}: ${otp}`);
-      }
+      // Send Email via Resend
+      await sendOtpEmail(user.email, otp, 'Welcome to TaskNova - Verify your email');
 
-      res.status(201).json({ message: 'User registered. Please check email for OTP (or server console).', email: user.email, devOtp: otp });
+      res.status(201).json({ message: 'Account created! Please check your email for the OTP.', email: user.email });
     } else {
       res.status(400);
       throw new Error('Invalid user data');
