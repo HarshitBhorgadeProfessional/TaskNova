@@ -2,13 +2,33 @@ const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 
-// Configure Nodemailer Transporter
+// Configure Nodemailer Transporter (Optimized for Railway)
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: "smtp.gmail.com",
+  port: 587,
+  secure: false, // true for 465, false for other ports
+  family: 4,     // Force IPv4 to avoid Railway IPv6 ENETUNREACH issues
+  requireTLS: true,
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
   },
+  connectionTimeout: 20000,
+  greetingTimeout: 20000,
+  socketTimeout: 30000,
+  tls: {
+    rejectUnauthorized: false,
+    minVersion: "TLSv1.2",
+  },
+});
+
+// Verify SMTP connection on startup
+transporter.verify((error, success) => {
+  if (error) {
+    console.error("SMTP Verify Error:", error);
+  } else {
+    console.log("SMTP Server Ready");
+  }
 });
 
 // Generate JWT
