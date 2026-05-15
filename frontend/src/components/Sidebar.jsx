@@ -49,14 +49,14 @@ const Sidebar = () => {
   }, [user]);
 
   const navItems = [
-    { name: 'Dashboard', path: '/', icon: <LayoutDashboard size={20} /> },
-    { name: 'Projects', path: '/projects', icon: <Briefcase size={20} /> },
-    { name: 'Tasks', path: '/tasks', icon: <CheckSquare size={20} /> },
-    { name: 'Team Chat', path: '/chat', icon: <MessageSquare size={20} /> },
+    { name: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard size={20} className="text-indigo-400" /> },
+    { name: 'Projects', path: '/projects', icon: <Briefcase size={20} className="text-amber-400" /> },
+    { name: 'Tasks', path: '/tasks', icon: <CheckSquare size={20} className="text-emerald-400" /> },
+    { name: 'Team Chat', path: '/chat', icon: <MessageSquare size={20} className="text-pink-400" /> },
   ];
 
   if (user?.role === 'Admin') {
-    navItems.push({ name: 'Users', path: '/users', icon: <Users size={20} /> });
+    navItems.push({ name: 'Users', path: '/users', icon: <Users size={20} className="text-blue-400" /> });
   }
 
   return (

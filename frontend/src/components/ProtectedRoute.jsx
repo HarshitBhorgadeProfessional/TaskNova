@@ -12,7 +12,7 @@ const ProtectedRoute = ({ children, requireAdmin = false }) => {
   }
 
   if (requireAdmin && user.role !== 'Admin') {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   return children;

@@ -40,7 +40,7 @@ const Signup = () => {
     setError('');
     try {
       await verifyOtp(email, otp);
-      navigate('/');
+      navigate('/dashboard');
     } catch (err) {
       setError(err.response?.data?.message || 'OTP verification failed');
     } finally {

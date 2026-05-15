@@ -14,6 +14,9 @@ import Projects from './pages/Projects';
 import Tasks from './pages/Tasks';
 import Chat from './pages/Chat';
 import Users from './pages/Users';
+import LandingPage from './pages/LandingPage';
+import Contact from './pages/Contact';
+import Help from './pages/Help';
 
 const AppLayout = ({ children }) => {
   return (
@@ -47,13 +50,19 @@ function App() {
         <Route path="/forgotpassword" element={<ForgotPassword />} />
         <Route path="/resetpassword/:token" element={<ResetPassword />} />
         
+        {/* Public Landing Pages */}
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/contact" element={<Contact />} />
+        <Route path="/help" element={<Help />} />
+
         {/* Protected Routes */}
-        <Route path="/" element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>} />
+        <Route path="/dashboard" element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>} />
         <Route path="/projects" element={<ProtectedRoute><AppLayout><Projects /></AppLayout></ProtectedRoute>} />
         <Route path="/tasks" element={<ProtectedRoute><AppLayout><Tasks /></AppLayout></ProtectedRoute>} />
         <Route path="/chat" element={<ProtectedRoute><AppLayout><Chat /></AppLayout></ProtectedRoute>} />
         <Route path="/users" element={<ProtectedRoute><AppLayout><Users /></AppLayout></ProtectedRoute>} />
         
+        {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
