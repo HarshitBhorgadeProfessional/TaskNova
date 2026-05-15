@@ -38,17 +38,17 @@ const signup = async (req, res) => {
         await userExists.save();
 
         if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-          await transporter.sendMail({
+          transporter.sendMail({
             from: process.env.EMAIL_USER,
             to: userExists.email,
             subject: 'TaskNova - Email Verification OTP',
             text: `Your verification OTP is: ${otp}\nThis will expire in 10 minutes.`,
-          });
+          }).catch(e => console.error("Email send error:", e.message));
         } else {
           console.log(`[DEV MODE] Verification OTP for ${userExists.email}: ${otp}`);
         }
 
-        return res.status(200).json({ message: 'OTP re-sent to email for verification (Check server console if dev mode)', email });
+        return res.status(200).json({ message: 'OTP re-sent to email for verification (Check server console if dev mode)', email, devOtp: otp });
       } else {
         res.status(400);
         throw new Error('User already exists');
@@ -72,17 +72,17 @@ const signup = async (req, res) => {
     if (user) {
       // Send Email
       if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-        await transporter.sendMail({
+        transporter.sendMail({
           from: process.env.EMAIL_USER,
           to: user.email,
           subject: 'Welcome to TaskNova - Verify your email',
           html: `<h2>Welcome to TaskNova!</h2><p>Your verification OTP is: <strong>${otp}</strong></p><p>This OTP will expire in 10 minutes.</p>`,
-        });
+        }).catch(e => console.error("Email send error:", e.message));
       } else {
         console.log(`[DEV MODE] Verification OTP for ${user.email}: ${otp}`);
       }
 
-      res.status(201).json({ message: 'User registered. Please check email for OTP (or server console).', email: user.email });
+      res.status(201).json({ message: 'User registered. Please check email for OTP (or server console).', email: user.email, devOtp: otp });
     } else {
       res.status(400);
       throw new Error('Invalid user data');
