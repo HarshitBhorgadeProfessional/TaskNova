@@ -53,22 +53,9 @@ app.use('/api/chat', require('./routes/chat'));
 app.use('/api/upload', require('./routes/uploads'));
 app.use('/api/comments', require('./routes/comments'));
 
-if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../frontend/dist')));
-  
-  // Express v5 compatible catch-all for SPA
-  app.use((req, res, next) => {
-    if (req.method === 'GET' && !req.path.startsWith('/api')) {
-      res.sendFile(path.resolve(__dirname, '../frontend', 'dist', 'index.html'));
-    } else {
-      next();
-    }
-  });
-} else {
-  app.get('/', (req, res) => {
-    res.send('API is running...');
-  });
-}
+app.get('/', (req, res) => {
+  res.send('TaskNova API is running...');
+});
 
 // Custom Error Handler
 app.use(errorHandler);
