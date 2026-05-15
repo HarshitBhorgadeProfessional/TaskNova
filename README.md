@@ -57,8 +57,8 @@ You can run both servers concurrently from the root directory:
 \`\`\`bash
 npm run dev
 \`\`\`
-- Frontend runs at \`http://localhost:3000\`
-- Backend runs at \`http://localhost:5000\`
+- Frontend runs at \`https://tasknovafrontend-production.up.railway.app/\`
+- Backend runs at \`https://tasknova-production-a911.up.railway.app/\`
 
 ## Deployment to Railway
 1. Push your code to a GitHub repository.
