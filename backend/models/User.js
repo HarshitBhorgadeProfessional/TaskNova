@@ -43,6 +43,11 @@ const userSchema = new mongoose.Schema({
   signupOtpExpire: Date,
   resetPasswordToken: String,
   resetPasswordExpire: Date,
+  preferences: {
+    taskAssigned: { type: Boolean, default: true },
+    deadlineReminders: { type: Boolean, default: true },
+    projectUpdates: { type: Boolean, default: true }
+  }
 }, { timestamps: true });
 
 // Encrypt password using bcrypt

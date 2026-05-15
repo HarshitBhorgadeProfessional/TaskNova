@@ -5,8 +5,24 @@ const User = require('../models/User');
 // @access  Private/Admin
 const getUsers = async (req, res) => {
   try {
-    const users = await User.find({}).select('-password');
-    res.json(users);
+    if (req.user.role === 'Admin') {
+      const users = await User.find({}).select('-password');
+      return res.json(users);
+    } else {
+      const Project = require('../models/Project');
+      const projects = await Project.find({ members: req.user._id });
+      
+      const memberIds = new Set();
+      memberIds.add(req.user._id.toString());
+      
+      projects.forEach(p => {
+        p.members.forEach(m => memberIds.add(m.toString()));
+        if (p.creator) memberIds.add(p.creator.toString());
+      });
+      
+      const users = await User.find({ _id: { $in: Array.from(memberIds) } }).select('-password');
+      return res.json(users);
+    }
   } catch (error) {
     res.status(res.statusCode || 500).json({ message: error.message });
   }

@@ -4,6 +4,7 @@ import { AuthContext } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
+import Footer from './components/Footer';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import ForgotPassword from './pages/ForgotPassword';
@@ -20,8 +21,13 @@ const AppLayout = ({ children }) => {
       <Sidebar />
       <div className="flex-1 flex flex-col">
         <Navbar />
-        <main className="p-6 flex-1 overflow-auto">
-          {children}
+        <main className="p-6 flex-1 overflow-auto flex flex-col">
+          <div className="flex-1">
+            {children}
+          </div>
+          <div className="mt-12">
+            <Footer />
+          </div>
         </main>
       </div>
     </div>

@@ -1,11 +1,52 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Briefcase, CheckSquare, Settings, MessageSquare, Users } from 'lucide-react';
+import { LayoutDashboard, Briefcase, CheckSquare, Settings, MessageSquare, Users, Circle } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { useContext } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { AuthContext } from '../context/AuthContext';
+import api from '../lib/axios';
+import socket from '../lib/socket';
+import SettingsModal from './SettingsModal';
 
 const Sidebar = () => {
   const { user } = useContext(AuthContext);
+  const [teamMembers, setTeamMembers] = useState([]);
+  const [onlineUsers, setOnlineUsers] = useState([]);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    
+    const fetchTeam = async () => {
+      try {
+        const res = await api.get('/api/users');
+        setTeamMembers(res.data.filter(u => u._id !== user._id));
+      } catch (err) {
+        console.error('Failed to fetch team members', err);
+      }
+    };
+    fetchTeam();
+
+    socket.connect();
+
+    const registerUser = () => {
+      socket.emit('userOnline', user._id);
+      socket.emit('getOnlineUsers');
+    };
+
+    if (socket.connected) {
+      registerUser();
+    }
+    
+    socket.on('connect', registerUser);
+
+    const handleOnlineUsers = (users) => setOnlineUsers(users);
+    socket.on('onlineUsersList', handleOnlineUsers);
+
+    return () => {
+      socket.off('connect', registerUser);
+      socket.off('onlineUsersList', handleOnlineUsers);
+    };
+  }, [user]);
 
   const navItems = [
     { name: 'Dashboard', path: '/', icon: <LayoutDashboard size={20} /> },
@@ -29,7 +70,7 @@ const Sidebar = () => {
         </div>
       </div>
       
-      <div className="px-4 py-6 flex-1 space-y-8">
+      <div className="px-4 py-6 flex-1 space-y-8 overflow-y-auto custom-scrollbar">
         <div>
           <p className="px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Menu</p>
           <nav className="space-y-1">
@@ -60,14 +101,50 @@ const Sidebar = () => {
             ))}
           </nav>
         </div>
+
+        <div>
+          <p className="px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Team Online</p>
+          <div className="space-y-1 px-2">
+            {teamMembers.length === 0 ? (
+              <p className="px-2 text-xs text-slate-500 italic">No team members found.</p>
+            ) : (
+              teamMembers.map(member => {
+                const isOnline = onlineUsers.includes(member._id);
+                return (
+                  <motion.div 
+                    key={member._id}
+                    whileHover={{ scale: 1.02, backgroundColor: 'rgba(30, 41, 59, 0.5)' }}
+                    className="flex items-center space-x-3 px-2 py-2 rounded-lg cursor-pointer transition-colors"
+                  >
+                    <div className="relative">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-slate-700 to-slate-600 flex items-center justify-center text-xs font-bold text-white shadow-sm">
+                        {member.name.charAt(0).toUpperCase()}
+                      </div>
+                      <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 border-2 border-slate-900 rounded-full ${isOnline ? 'bg-emerald-500' : 'bg-slate-500'}`}></span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-slate-300 truncate">{member.name}</p>
+                      {member.role === 'Admin' && <p className="text-[10px] text-primary-400">Admin</p>}
+                    </div>
+                  </motion.div>
+                );
+              })
+            )}
+          </div>
+        </div>
       </div>
       
       <div className="p-4 border-t border-slate-800">
-        <button className="flex items-center space-x-3 px-4 py-2.5 w-full rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors">
+        <button 
+          onClick={() => setIsSettingsOpen(true)}
+          className="flex items-center space-x-3 px-4 py-2.5 w-full rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors"
+        >
           <Settings size={20} />
           <span className="font-medium">Settings</span>
         </button>
       </div>
+
+      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
     </aside>
   );
 };

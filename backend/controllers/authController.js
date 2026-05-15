@@ -274,4 +274,79 @@ const resetPassword = async (req, res) => {
   }
 };
 
-module.exports = { signup, login, getProfile, forgotPassword, resetPassword, verifySignupOtp };
+// @desc    Update user profile
+// @route   PUT /api/auth/profile
+// @access  Private
+const updateProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+
+    if (user) {
+      user.name = req.body.name || user.name;
+      
+      const updatedUser = await user.save();
+      res.json({
+        _id: updatedUser._id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        role: updatedUser.role,
+      });
+    } else {
+      res.status(404);
+      throw new Error('User not found');
+    }
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Update user password
+// @route   PUT /api/auth/password
+// @access  Private
+const updatePassword = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select('+password');
+
+    if (user) {
+      if (!(await user.matchPassword(req.body.currentPassword))) {
+        res.status(401);
+        throw new Error('Current password is incorrect');
+      }
+
+      user.password = req.body.newPassword;
+      await user.save();
+      res.json({ message: 'Password updated successfully' });
+    } else {
+      res.status(404);
+      throw new Error('User not found');
+    }
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Update user preferences
+// @route   PUT /api/auth/preferences
+// @access  Private
+const updatePreferences = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+
+    if (user) {
+      user.preferences = {
+        ...user.preferences,
+        ...req.body,
+      };
+      
+      await user.save();
+      res.json({ message: 'Preferences updated', preferences: user.preferences });
+    } else {
+      res.status(404);
+      throw new Error('User not found');
+    }
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+module.exports = { signup, login, getProfile, forgotPassword, resetPassword, verifySignupOtp, updateProfile, updatePassword, updatePreferences };

@@ -81,9 +81,21 @@ const io = socketIo(server, {
 // Make io accessible to our router
 app.set('io', io);
 
+const onlineUsers = new Map(); // userId -> socketId
+
 io.on('connection', (socket) => {
   console.log('New client connected:', socket.id);
   
+  // Track online users
+  socket.on('userOnline', (userId) => {
+    onlineUsers.set(userId, socket.id);
+    io.emit('onlineUsersList', Array.from(onlineUsers.keys()));
+  });
+
+  socket.on('getOnlineUsers', () => {
+    socket.emit('onlineUsersList', Array.from(onlineUsers.keys()));
+  });
+
   socket.on('sendMessage', async (messageData) => {
     try {
       const Message = require('./models/Message');
@@ -99,6 +111,17 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
+    let disconnectedUserId = null;
+    for (let [userId, socketId] of onlineUsers.entries()) {
+      if (socketId === socket.id) {
+        disconnectedUserId = userId;
+        onlineUsers.delete(userId);
+        break;
+      }
+    }
+    if (disconnectedUserId) {
+      io.emit('onlineUsersList', Array.from(onlineUsers.keys()));
+    }
     console.log('Client disconnected:', socket.id);
   });
 });
@@ -108,3 +131,4 @@ const PORT = process.env.PORT || 5000;
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
 });
+// restart

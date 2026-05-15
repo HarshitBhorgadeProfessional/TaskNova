@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { signup, login, getProfile, forgotPassword, resetPassword, verifySignupOtp } = require('../controllers/authController');
+const { signup, login, getProfile, forgotPassword, resetPassword, verifySignupOtp, updateProfile, updatePassword, updatePreferences } = require('../controllers/authController');
 const { protect } = require('../middleware/auth');
 const { check } = require('express-validator');
 
@@ -26,6 +26,9 @@ router.post(
 );
 
 router.get('/profile', protect, getProfile);
+router.put('/profile', protect, updateProfile);
+router.put('/password', protect, updatePassword);
+router.put('/preferences', protect, updatePreferences);
 router.post('/forgotpassword', forgotPassword);
 router.put('/resetpassword/:token', resetPassword);
 

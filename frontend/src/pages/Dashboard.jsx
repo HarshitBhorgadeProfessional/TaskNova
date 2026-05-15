@@ -137,12 +137,27 @@ const Dashboard = () => {
 
   if (loading) return <div className="p-8">Loading Analytics...</div>;
 
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    const firstName = user?.name?.split(' ')[0] || '';
+    if (hour < 12) return `Good Morning, ${firstName} ☀️`;
+    if (hour < 18) return `Good Afternoon, ${firstName} 🌤️`;
+    return `Good Evening, ${firstName} 🌙`;
+  };
+
+  const getSubtext = () => {
+    if (user?.role === 'Admin') {
+      return `You are managing ${stats.inProgressTasks + stats.pendingTasks} active tasks today.`;
+    }
+    return `You have ${stats.pendingTasks} pending tasks today.`;
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-end">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800 dark:text-white tracking-tight">Overview</h2>
-          <p className="text-slate-500 dark:text-slate-400 mt-1">Here's what's happening with your team today.</p>
+          <h2 className="text-2xl font-bold text-slate-800 dark:text-white tracking-tight">{getGreeting()}</h2>
+          <p className="text-slate-500 dark:text-slate-400 mt-1">{getSubtext()}</p>
         </div>
         <div className="hidden sm:flex bg-white dark:bg-slate-800 rounded-lg p-1 shadow-sm border border-slate-200 dark:border-slate-700">
           <button className="px-4 py-1.5 text-sm font-medium rounded-md bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200">7 Days</button>

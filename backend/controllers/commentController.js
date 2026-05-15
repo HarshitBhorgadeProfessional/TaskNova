@@ -2,6 +2,7 @@ const Comment = require('../models/Comment');
 const Task = require('../models/Task');
 const Notification = require('../models/Notification');
 const ActivityLog = require('../models/ActivityLog');
+const { sendNotification } = require('../utils/notificationHelper');
 
 // @desc    Get comments for a task
 // @route   GET /api/comments/:taskId
@@ -34,12 +35,16 @@ const addComment = async (req, res) => {
     });
 
     // Notify assigned user if someone else commented
+    const io = req.app.get('io');
     if (task.assignedTo && task.assignedTo.toString() !== req.user._id.toString()) {
-      await Notification.create({
-        user: task.assignedTo,
-        message: `${req.user.name} commented on your task: ${task.title}`,
-        type: 'Comment',
-      });
+      await sendNotification(
+        io,
+        task.assignedTo,
+        `${req.user.name} commented on your task: ${task.title}`,
+        'Comment',
+        '/tasks',
+        'projectUpdates'
+      );
     }
 
     await ActivityLog.create({

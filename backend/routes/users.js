@@ -5,7 +5,7 @@ const { protect } = require('../middleware/auth');
 const { isAdmin } = require('../middleware/role');
 
 router.route('/')
-  .get(protect, isAdmin, getUsers)
+  .get(protect, getUsers)
   .post(protect, isAdmin, createUser);
 
 router.route('/:id')

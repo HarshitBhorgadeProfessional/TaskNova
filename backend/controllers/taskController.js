@@ -1,6 +1,7 @@
 const Task = require('../models/Task');
 const ActivityLog = require('../models/ActivityLog');
 const Notification = require('../models/Notification');
+const { sendNotification } = require('../utils/notificationHelper');
 
 // @desc    Get all tasks
 // @route   GET /api/tasks
@@ -54,18 +55,20 @@ const createTask = async (req, res) => {
       details: createdTask.title
     });
 
-    // Create Notification
+    // Create Notification using helper
+    const io = req.app.get('io');
     if (assignedTo && assignedTo.toString() !== req.user._id.toString()) {
-      await Notification.create({
-        user: assignedTo,
-        message: `${req.user.name} assigned you a new task: ${createdTask.title}`,
-        type: 'Task',
-        link: `/tasks`
-      });
+      await sendNotification(
+        io,
+        assignedTo,
+        `${req.user.name} assigned you a new task: ${createdTask.title}`,
+        'Task',
+        '/tasks',
+        'taskAssigned'
+      );
     }
 
     // Emit socket event
-    const io = req.app.get('io');
     if (io) io.emit('taskCreated', populatedTask);
 
     res.status(201).json(populatedTask);
@@ -124,8 +127,33 @@ const updateTask = async (req, res) => {
       details: updatedTask.title
     });
 
-    // Emit socket event
     const io = req.app.get('io');
+
+    // Notify assigned user if admin changed their task
+    if (req.user.role === 'Admin' && updatedTask.assignedTo && updatedTask.assignedTo.toString() !== req.user._id.toString()) {
+      await sendNotification(
+        io,
+        updatedTask.assignedTo,
+        `Admin ${req.user.name} updated your task: ${updatedTask.title}`,
+        'Task',
+        '/tasks',
+        'projectUpdates'
+      );
+    }
+
+    // Notify admin if member completes or updates task
+    if (req.user.role === 'Member' && updatedTask.createdBy) {
+      await sendNotification(
+        io,
+        updatedTask.createdBy,
+        `${req.user.name} updated task status to ${updatedTask.status}: ${updatedTask.title}`,
+        'Task',
+        '/tasks',
+        'projectUpdates'
+      );
+    }
+
+    // Emit socket event
     if (io) io.emit('taskUpdated', populatedTask);
 
     res.json(populatedTask);

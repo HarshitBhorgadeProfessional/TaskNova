@@ -3,13 +3,12 @@ import { AuthContext } from '../context/AuthContext';
 import { LogOut, Bell, Search, User as UserIcon, Moon, Sun, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../lib/axios';
+import NotificationDropdown from './NotificationDropdown';
 
 const Navbar = () => {
   const { user, logout } = useContext(AuthContext);
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
   const [showProfileMenu, setShowProfileMenu] = useState(false);
-  const [showNotifMenu, setShowNotifMenu] = useState(false);
-  const [notifications, setNotifications] = useState([]);
   
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState({ tasks: [], projects: [] });
@@ -19,38 +18,7 @@ const Navbar = () => {
   const notifRef = useRef(null);
   const searchRef = useRef(null);
 
-  useEffect(() => {
-    if (user) {
-      fetchNotifications();
-    }
-  }, [user]);
 
-  const fetchNotifications = async () => {
-    try {
-      const res = await api.get('/api/notifications');
-      setNotifications(res.data);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const markAllRead = async () => {
-    try {
-      await api.put('/api/notifications/read-all');
-      setNotifications(notifications.map(n => ({ ...n, isRead: true })));
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const markRead = async (id) => {
-    try {
-      await api.put(`/api/notifications/${id}/read`);
-      setNotifications(notifications.map(n => n._id === id ? { ...n, isRead: true } : n));
-    } catch (err) {
-      console.error(err);
-    }
-  };
 
   useEffect(() => {
     const delayDebounce = setTimeout(async () => {
@@ -158,60 +126,14 @@ const Navbar = () => {
         </button>
 
         <div className="relative" ref={notifRef}>
-          <button 
-            onClick={() => { setShowNotifMenu(!showNotifMenu); setShowProfileMenu(false); }}
-            className="relative p-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition"
-          >
-            <Bell size={20} />
-            {notifications.filter(n => !n.isRead).length > 0 && (
-              <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border border-white dark:border-slate-900"></span>
-            )}
-          </button>
-
-          <AnimatePresence>
-            {showNotifMenu && (
-              <motion.div 
-                initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                transition={{ duration: 0.15 }}
-                className="absolute right-0 mt-2 w-80 bg-white dark:bg-slate-800 rounded-xl shadow-xl py-1 border border-slate-100 dark:border-slate-700 max-h-96 overflow-y-auto custom-scrollbar z-50"
-              >
-                <div className="flex justify-between items-center px-4 py-3 border-b border-slate-100 dark:border-slate-700">
-                  <h3 className="text-sm font-bold text-slate-800 dark:text-white">Notifications</h3>
-                  <button onClick={markAllRead} className="text-xs text-primary-500 hover:text-primary-600 font-medium">Mark all read</button>
-                </div>
-                <div className="py-2">
-                  {notifications.length === 0 ? (
-                    <p className="text-sm text-slate-500 text-center py-4">No notifications yet</p>
-                  ) : (
-                    notifications.map(notif => (
-                      <div 
-                        key={notif._id} 
-                        onClick={() => { markRead(notif._id); if (notif.link) window.location.href = notif.link; }}
-                        className={`px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer flex items-start gap-3 transition-colors ${!notif.isRead ? 'bg-primary-50/50 dark:bg-primary-900/10' : ''}`}
-                      >
-                        <div className={`mt-1 flex-shrink-0 w-2 h-2 rounded-full ${!notif.isRead ? 'bg-primary-500' : 'bg-transparent'}`}></div>
-                        <div>
-                          <p className={`text-sm ${!notif.isRead ? 'text-slate-900 dark:text-white font-medium' : 'text-slate-600 dark:text-slate-300'}`}>
-                            {notif.message}
-                          </p>
-                          <p className="text-xs text-slate-400 mt-1">{new Date(notif.createdAt).toLocaleString()}</p>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          <NotificationDropdown />
         </div>
         
         <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-2"></div>
 
         <div className="relative">
           <button 
-            onClick={() => { setShowProfileMenu(!showProfileMenu); setShowNotifMenu(false); }}
+            onClick={() => setShowProfileMenu(!showProfileMenu)}
             className="flex items-center space-x-2 focus:outline-none"
           >
             <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-primary-500 to-indigo-500 text-white flex items-center justify-center font-semibold shadow-sm">
