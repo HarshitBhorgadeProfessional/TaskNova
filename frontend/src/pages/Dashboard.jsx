@@ -13,10 +13,12 @@ const Dashboard = () => {
     pendingTasks: 0,
     inProgressTasks: 0,
     activeMembers: 0,
+    overdueTasks: 0,
   });
   const [loading, setLoading] = useState(true);
 
   const [trendData, setTrendData] = useState([]);
+  const [userTaskData, setUserTaskData] = useState([]);
   const [activities, setActivities] = useState([]);
 
   useEffect(() => {
@@ -34,6 +36,9 @@ const Dashboard = () => {
         const users = usersRes.data;
         setActivities(activitiesRes.data || []);
 
+        const now = new Date();
+        const overdue = tasks.filter(t => t.dueDate && new Date(t.dueDate) < now && t.status !== 'Completed').length;
+
         setStats({
           totalProjects: projects.length,
           totalTasks: tasks.length,
@@ -41,7 +46,22 @@ const Dashboard = () => {
           inProgressTasks: tasks.filter(t => t.status === 'In Progress').length,
           pendingTasks: tasks.filter(t => t.status === 'Pending').length,
           activeMembers: users.length || 1,
+          overdueTasks: overdue,
         });
+
+        // Compute Tasks per User
+        const userTasksMap = {};
+        tasks.forEach(t => {
+          if (t.assignedTo) {
+            const name = t.assignedTo.name || 'Unassigned';
+            userTasksMap[name] = (userTasksMap[name] || 0) + 1;
+          }
+        });
+        const computedUserTaskData = Object.keys(userTasksMap).map(name => ({
+          name,
+          tasks: userTasksMap[name]
+        })).sort((a,b) => b.tasks - a.tasks).slice(0, 5); // top 5
+        setUserTaskData(computedUserTaskData);
 
         // Compute last 7 days productivity trends
         const last7Days = Array.from({length: 7}, (_, i) => {
@@ -140,12 +160,12 @@ const Dashboard = () => {
           gradient="from-emerald-500 to-teal-600" subtext={`${Math.round((stats.completedTasks/stats.totalTasks)*100 || 0)}% completion rate`}
         />
         <StatCard 
-          title="Active Projects" value={stats.totalProjects} icon={<Briefcase size={22} />} 
-          gradient="from-purple-500 to-fuchsia-600" subtext="3 ending soon"
+          title="Overdue Tasks" value={stats.overdueTasks} icon={<Clock size={22} />} 
+          gradient="from-red-500 to-rose-600" subtext="Needs attention"
         />
         <StatCard 
-          title="Team Members" value={stats.activeMembers} icon={<Users size={22} />} 
-          gradient="from-orange-500 to-rose-600" subtext="All online"
+          title="Active Projects" value={stats.totalProjects} icon={<Briefcase size={22} />} 
+          gradient="from-purple-500 to-fuchsia-600" subtext="3 ending soon"
         />
       </div>
 
@@ -224,45 +244,69 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Activity Timeline */}
-      <div className="glass-panel p-6 rounded-2xl">
-        <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-6 flex items-center">
-          <Activity size={20} className="mr-2 text-primary-500" /> Recent Activity
-        </h3>
-        <div className="space-y-6 max-h-96 overflow-y-auto pr-2 custom-scrollbar">
-          {activities.length === 0 ? (
-            <p className="text-sm text-slate-500 text-center py-4">No recent activities.</p>
-          ) : (
-            activities.map((activity, idx) => (
-              <div key={activity._id || idx} className="flex relative">
-                {idx !== activities.length - 1 && (
-                  <div className="absolute top-8 left-4 w-0.5 h-full -ml-px bg-slate-200 dark:bg-slate-700"></div>
-                )}
-                <div className="relative flex-shrink-0 w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900/50 flex items-center justify-center border-4 border-white dark:border-[#111113] z-10">
-                  <span className="text-primary-600 dark:text-primary-400 text-xs font-bold">
-                    {activity.user?.name?.charAt(0).toUpperCase() || 'U'}
-                  </span>
-                </div>
-                <div className="ml-4 min-w-0 flex-1 py-1.5">
-                  <div className="text-sm text-slate-800 dark:text-slate-200">
-                    <span className="font-semibold">{activity.user?.name || 'Someone'}</span>{' '}
-                    <span className="text-slate-500 dark:text-slate-400">{activity.action}</span>{' '}
-                    <span className="font-medium text-primary-600 dark:text-primary-400">{activity.details || 'a task'}</span>
+      {/* Additional Charts Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Tasks per User Chart */}
+        <div className="glass-panel p-6 rounded-2xl">
+          <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-6 flex items-center">
+            <Users size={20} className="mr-2 text-primary-500" /> Tasks per User
+          </h3>
+          <div className="h-72">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={userTaskData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" opacity={0.2} />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} dy={10} />
+                <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} dx={-10} allowDecimals={false} />
+                <RechartsTooltip 
+                  cursor={{fill: 'rgba(51, 65, 85, 0.1)'}}
+                  contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#f8fafc' }}
+                />
+                <Bar dataKey="tasks" fill="#6366f1" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Activity Timeline */}
+        <div className="glass-panel p-6 rounded-2xl">
+          <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-6 flex items-center">
+            <Activity size={20} className="mr-2 text-primary-500" /> Recent Activity
+          </h3>
+          <div className="space-y-6 max-h-72 overflow-y-auto pr-2 custom-scrollbar">
+            {activities.length === 0 ? (
+              <p className="text-sm text-slate-500 text-center py-4">No recent activities.</p>
+            ) : (
+              activities.map((activity, idx) => (
+                <div key={activity._id || idx} className="flex relative">
+                  {idx !== activities.length - 1 && (
+                    <div className="absolute top-8 left-4 w-0.5 h-full -ml-px bg-slate-200 dark:bg-slate-700"></div>
+                  )}
+                  <div className="relative flex-shrink-0 w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900/50 flex items-center justify-center border-4 border-white dark:border-[#111113] z-10">
+                    <span className="text-primary-600 dark:text-primary-400 text-xs font-bold">
+                      {activity.user?.name?.charAt(0).toUpperCase() || 'U'}
+                    </span>
                   </div>
-                  <div className="mt-1 flex items-center text-xs text-slate-400">
-                    <Clock size={12} className="mr-1" />
-                    <span>{new Date(activity.createdAt).toLocaleString()}</span>
-                    {activity.project?.title && (
-                      <>
-                        <span className="mx-2">•</span>
-                        <span>{activity.project.title}</span>
-                      </>
-                    )}
+                  <div className="ml-4 min-w-0 flex-1 py-1.5">
+                    <div className="text-sm text-slate-800 dark:text-slate-200">
+                      <span className="font-semibold">{activity.user?.name || 'Someone'}</span>{' '}
+                      <span className="text-slate-500 dark:text-slate-400">{activity.action}</span>{' '}
+                      <span className="font-medium text-primary-600 dark:text-primary-400">{activity.details || 'a task'}</span>
+                    </div>
+                    <div className="mt-1 flex items-center text-xs text-slate-400">
+                      <Clock size={12} className="mr-1" />
+                      <span>{new Date(activity.createdAt).toLocaleString()}</span>
+                      {activity.project?.title && (
+                        <>
+                          <span className="mx-2">•</span>
+                          <span>{activity.project.title}</span>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))
-          )}
+              ))
+            )}
+          </div>
         </div>
       </div>
     </div>

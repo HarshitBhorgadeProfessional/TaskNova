@@ -1,14 +1,22 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Briefcase, CheckSquare, Settings, MessageSquare } from 'lucide-react';
+import { LayoutDashboard, Briefcase, CheckSquare, Settings, MessageSquare, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useContext } from 'react';
+import { AuthContext } from '../context/AuthContext';
 
 const Sidebar = () => {
+  const { user } = useContext(AuthContext);
+
   const navItems = [
     { name: 'Dashboard', path: '/', icon: <LayoutDashboard size={20} /> },
     { name: 'Projects', path: '/projects', icon: <Briefcase size={20} /> },
     { name: 'Tasks', path: '/tasks', icon: <CheckSquare size={20} /> },
     { name: 'Team Chat', path: '/chat', icon: <MessageSquare size={20} /> },
   ];
+
+  if (user?.role === 'Admin') {
+    navItems.push({ name: 'Users', path: '/users', icon: <Users size={20} /> });
+  }
 
   return (
     <aside className="w-64 bg-slate-900 dark:bg-[#0b1120] text-slate-300 hidden md:flex flex-col border-r border-slate-800">
