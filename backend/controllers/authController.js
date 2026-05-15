@@ -1,17 +1,16 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
-const { Resend } = require('resend');
+const https = require('https');
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Helper: Send OTP email via Resend HTTP API (no npm package - works on any Node.js)
+const sendOtpEmail = (to, otp, subject = 'TaskNova - Email Verification') => {
+  return new Promise((resolve) => {
+    if (!process.env.RESEND_API_KEY) {
+      console.log(`[DEV MODE] OTP for ${to}: ${otp}`);
+      return resolve();
+    }
 
-// Helper: Send OTP email via Resend HTTP API (works on Railway)
-const sendOtpEmail = async (to, otp, subject = 'TaskNova - Email Verification') => {
-  if (!process.env.RESEND_API_KEY) {
-    console.log(`[DEV MODE] OTP for ${to}: ${otp}`);
-    return;
-  }
-  try {
-    await resend.emails.send({
+    const body = JSON.stringify({
       from: 'TaskNova <onboarding@resend.dev>',
       to: [to],
       subject,
@@ -22,10 +21,39 @@ const sendOtpEmail = async (to, otp, subject = 'TaskNova - Email Verification') 
         <p style="color:#6b7280;font-size:14px;margin-top:16px">This code expires in 10 minutes. Do not share it with anyone.</p>
       </div>`,
     });
-    console.log(`[EMAIL SENT] OTP sent to ${to}`);
-  } catch (err) {
-    console.error(`[EMAIL ERROR] Failed to send to ${to}:`, err.message);
-  }
+
+    const options = {
+      hostname: 'api.resend.com',
+      path: '/emails',
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(body),
+      },
+    };
+
+    const req = https.request(options, (res) => {
+      let data = '';
+      res.on('data', (chunk) => { data += chunk; });
+      res.on('end', () => {
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          console.log(`[EMAIL SENT] OTP sent to ${to}`);
+        } else {
+          console.error(`[EMAIL ERROR] Resend API error ${res.statusCode}: ${data}`);
+        }
+        resolve();
+      });
+    });
+
+    req.on('error', (err) => {
+      console.error(`[EMAIL ERROR] Request failed: ${err.message}`);
+      resolve(); // Never reject - don't crash the server
+    });
+
+    req.write(body);
+    req.end();
+  });
 };
 
 // Generate JWT
