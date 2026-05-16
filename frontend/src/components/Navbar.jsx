@@ -7,7 +7,7 @@ import NotificationDropdown from './NotificationDropdown';
 
 const Navbar = () => {
   const { user, logout } = useContext(AuthContext);
-  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
+  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   
   const [searchQuery, setSearchQuery] = useState('');
